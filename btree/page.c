@@ -48,6 +48,47 @@ Page* get_root_page(PageManager* pm){
     return get_page(pm->fd);
 }
 
+void insert_key_in_page(Page* page, int key, int value){
+    int pos = page->header->num_of_keys;
+
+    while(pos >= 0 && (!page->keys[pos] || page->keys[pos] > key)){
+        page->keys[pos + 1] = page->keys[pos];
+        page->keys[pos] = key;
+
+        page->children[pos + 2] = page->children[pos + 1];
+
+        pos--;
+    }
+
+    page->header->num_of_keys++;
+
+    return;
+}
+
+void delete_key_from_page(Page* page, int key){
+    int i = 0;
+    int num_of_Keys = page->header->num_of_keys;
+    int pos = -1;
+    while(i < num_of_Keys){
+        if(page->keys[i] == key){
+            pos = i;
+            break;
+        }
+        i++;
+    }
+    if(pos == -1) return;
+
+    while(pos < num_of_Keys){
+        page->keys[pos] = page->keys[pos + 1];
+        page->children[pos + 1] = page->children[pos + 2];
+        pos++;
+    }
+    page->header->num_of_keys--;
+    return;
+}
+
+
+
 void print_page(Page* page){
     printf("Page Header: \n");
     printf("\tPage type: %d\n", page->header->page_type);
@@ -63,4 +104,5 @@ void print_page(Page* page){
     for(int i = 0; i < MAX_KEYS_PER_PAGE + 2; i++){
         printf("%d, ", page->children[i]);
     }
+    printf("\n");
 }

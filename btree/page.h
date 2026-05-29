@@ -34,3 +34,5 @@ typedef struct Page{
 Page* get_page(int fd);
 Page* get_root_page(PageManager* pm);
 void print_page(Page* page);
+void insert_key_in_page(Page* page, int key, int value);
+void delete_key_from_page(Page* page, int key);
