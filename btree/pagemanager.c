@@ -92,6 +92,28 @@ PageManager* create_pagemanager(const char* filename, bool trunc){
     return pm;
 }
 
+void write_page(PageManager* pm, Page* page, long offset){
+    int fd = pm->fd;
+
+    if(lseek(fd, offset, SEEK_SET) == -1){
+        perror("lseek");
+        return;
+    }
+
+    char page_buf[PAGE_SIZE];
+    memset(page_buf, 0, PAGE_SIZE);
+    memcpy(page_buf, page->header, sizeof(PageHeader));
+    memcpy(page_buf + PAGE_HEADER_SIZE, page->keys, sizeof(page->keys));
+    memcpy(page_buf + PAGE_HEADER_SIZE + sizeof(page->keys), page->children, sizeof(page->children));
+
+    int written = write(fd, page_buf, PAGE_SIZE);
+    if(written == -1){
+        perror("write page failed");
+        return;
+    }
+    return;
+}
+
 PageManager* get_pagemanager(const char* filename){
     int fd = open(filename, O_RDWR);
 
