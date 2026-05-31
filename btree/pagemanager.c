@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 #include <fcntl.h>
@@ -122,7 +123,7 @@ PageManager* get_pagemanager(const char* filename){
         return NULL;
     }
 
-    unsigned char buffer[PAGE_MANAGER_HEADER_SIZE];
+    unsigned char buffer[DB_HEADER_SIZE];
     ssize_t bytes_read = read(fd, buffer, sizeof(buffer));
 
     if (bytes_read == -1) {

@@ -40,7 +40,7 @@ Page* get_page(int fd){
 
 Page* get_root_page(PageManager* pm){
     // skip the page manager header and points to the root page's first byte.
-    if (lseek(pm->fd, PAGE_MANAGER_HEADER_SIZE, SEEK_SET) == -1) {
+    if (lseek(pm->fd, DB_HEADER_SIZE, SEEK_SET) == -1) {
         perror("lseek");
         return NULL;
     }

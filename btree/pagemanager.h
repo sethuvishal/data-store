@@ -3,7 +3,7 @@
 
 #include "page.h"
 
-#define PAGE_MANAGER_HEADER_SIZE 100
+#define DB_HEADER_SIZE 100
 
 
 typedef struct Page Page;
