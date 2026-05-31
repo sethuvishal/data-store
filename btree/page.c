@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -9,7 +10,7 @@
 #include "pagemanager.h"
 
 Page* get_page(int fd){
-    char page_buf[PAGE_SIZE];
+    uint8_t page_buf[PAGE_SIZE];
 
     ssize_t n = read(fd, page_buf, PAGE_SIZE);
 

@@ -74,7 +74,7 @@ PageManager* create_pagemanager(const char* filename, bool trunc){
         return NULL;
     }
 
-    char page_buf[PAGE_SIZE];
+    uint8_t page_buf[PAGE_SIZE];
     memset(page_buf, 0, PAGE_SIZE);
 
     /* copy page header into beginning of page */
@@ -101,7 +101,7 @@ void write_page(PageManager* pm, Page* page, long offset){
         return;
     }
 
-    char page_buf[PAGE_SIZE];
+    uint8_t page_buf[PAGE_SIZE];
     memset(page_buf, 0, PAGE_SIZE);
     memcpy(page_buf, page->header, sizeof(PageHeader));
     memcpy(page_buf + PAGE_HEADER_SIZE, page->keys, sizeof(page->keys));
@@ -123,7 +123,7 @@ PageManager* get_pagemanager(const char* filename){
         return NULL;
     }
 
-    unsigned char buffer[DB_HEADER_SIZE];
+    uint8_t buffer[DB_HEADER_SIZE];
     ssize_t bytes_read = read(fd, buffer, sizeof(buffer));
 
     if (bytes_read == -1) {
