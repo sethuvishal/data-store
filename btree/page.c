@@ -32,7 +32,11 @@ Page* get_page(int fd){
     }
 
     memcpy(page->keys, page_buf + PAGE_HEADER_SIZE, sizeof(page->keys));
-    memcpy(page->children, page_buf + PAGE_HEADER_SIZE + sizeof(page->keys), sizeof(page->children));
+    if(page_header->page_type & LEAF_PAGE)
+        memcpy(page->children, page_buf + PAGE_HEADER_SIZE + sizeof(page->keys), sizeof(page->children));
+    else
+        memcpy(page->data, page_buf + PAGE_HEADER_SIZE + sizeof(page->keys), sizeof(page->data));
+        
     page->header = page_header;
 
     return page;
@@ -49,7 +53,7 @@ Page* get_root_page(PageManager* pm){
     return get_page(pm->fd);
 }
 
-void insert_key_in_page(Page* page, int key, int value){
+void insert_key_in_internal_page(Page* page, int key, int value){
     int pos = page->header->num_of_keys;
 
     while(pos >= 0 && (!page->keys[pos] || page->keys[pos] > key)){
@@ -57,6 +61,24 @@ void insert_key_in_page(Page* page, int key, int value){
         page->keys[pos] = key;
 
         page->children[pos + 2] = page->children[pos + 1];
+
+        pos--;
+    }
+
+    page->header->num_of_keys++;
+
+    return;
+}
+
+void insert_key_in_leaf_page(Page* page, int key, int value){
+    int pos = page->header->num_of_keys;
+
+    while(pos >= 0 && (!page->keys[pos] || page->keys[pos] > key)){
+        page->keys[pos + 1] = page->keys[pos];
+        page->keys[pos] = key;
+
+        page->data[pos + 1] = page->data[pos];
+        page->data[pos] = value;
 
         pos--;
     }
@@ -81,7 +103,10 @@ void delete_key_from_page(Page* page, int key){
 
     while(pos < num_of_Keys){
         page->keys[pos] = page->keys[pos + 1];
-        page->children[pos + 1] = page->children[pos + 2];
+        if(page->header->page_type & LEAF_PAGE)
+            page->data[pos] = page->data[pos + 1];
+        else 
+            page->children[pos + 1] = page->children[pos + 2];
         pos++;
     }
     page->header->num_of_keys--;
@@ -101,9 +126,16 @@ void print_page(Page* page){
         printf("%d, ", page->keys[i]);
     }
     printf("\n");
-    printf("\t Children: \n");
-    for(int i = 0; i < MAX_KEYS_PER_PAGE + 2; i++){
-        printf("%d, ", page->children[i]);
+    if(page->header->page_type & LEAF_PAGE){
+        printf("\t Data: \n");
+        for(int i = 0; i < MAX_KEYS_PER_PAGE; i++){
+            printf("%d, ", page->data[i]);
+        }
+    }else{
+        printf("\t Children: \n");
+        for(int i = 0; i < MAX_KEYS_PER_PAGE + 2; i++){
+            printf("%d, ", page->children[i]);
+        }
     }
     printf("\n");
 }

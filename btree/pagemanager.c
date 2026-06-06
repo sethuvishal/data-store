@@ -57,15 +57,19 @@ PageManager* create_pagemanager(const char* filename, bool trunc){
         free(pm);
         return NULL;
     }
-    root_page_header->page_type = ROOT_PAGE;
+    root_page_header->page_type = ROOT_PAGE | LEAF_PAGE;
     root_page_header->num_of_keys = 0;
 
     ssize_t written;
 
     /* write page manager header */
-    written = write(fd, header, sizeof(PageManagerHeader));
+    char buffer[100] = {0};
 
-    if (written != sizeof(PageManagerHeader)) {
+    memcpy(buffer, header, sizeof(PageManagerHeader));
+
+    written = write(fd, buffer, sizeof(buffer));
+
+    if (written != sizeof(buffer)) {
         perror("write header");
         close(fd);
         free(root_page_header);

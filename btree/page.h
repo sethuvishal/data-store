@@ -15,24 +15,28 @@
 typedef struct PageManager PageManager;
 
 typedef enum PAGE_TYPE {
-    ROOT_PAGE,
-    LEAF_PAGE,
-    NON_LEAF_PAGE
+    ROOT_PAGE = 1 << 0,
+    LEAF_PAGE = 1 << 1,
+    NON_LEAF_PAGE = 1 << 2
 } PAGE_TYPE;
 
 typedef struct PageHeader {
-    PAGE_TYPE page_type;
+    unsigned int page_type;
     int num_of_keys;
 } PageHeader;
 
 typedef struct Page{
     PageHeader* header;
     int keys[MAX_KEYS_PER_PAGE + 1];
-    int children[MAX_KEYS_PER_PAGE + 2];
+    union {
+        int children[MAX_KEYS_PER_PAGE + 2];
+        int data[MAX_KEYS_PER_PAGE + 1];
+    };
 } Page;
 
 Page* get_page(int fd);
 Page* get_root_page(PageManager* pm);
 void print_page(Page* page);
-void insert_key_in_page(Page* page, int key, int value);
+void insert_key_in_internal_page(Page* page, int key, int value);
+void insert_key_in_leaf_page(Page* page, int key, int value);
 void delete_key_from_page(Page* page, int key);
