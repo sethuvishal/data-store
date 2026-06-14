@@ -53,6 +53,43 @@ Page* get_root_page(PageManager* pm){
     return get_page(pm->fd);
 }
 
+off_t create_new_page(PageManager* pm, int* keys, int* values, unsigned int page_type){
+    Page* page = malloc(sizeof(Page));
+    PageHeader* page_header = malloc(sizeof(PageHeader));
+    int num_of_keys = 0;
+    while(num_of_keys < MAX_KEYS_PER_PAGE && keys[num_of_keys] != 0){
+        num_of_keys++;
+    }
+    page_header->page_type = page_type;
+    page->header->num_of_keys = num_of_keys;
+
+    page->header = page_header;
+
+    memcpy(page->keys, keys, (MAX_KEYS_PER_PAGE + 1) * sizeof(int));
+    
+    if(page_type & LEAF_PAGE){
+        memcpy(page->data, values, (MAX_KEYS_PER_PAGE + 2) * sizeof(int));
+    }else{
+        memcpy(page->children, values, (MAX_KEYS_PER_PAGE + 2) * sizeof(int));
+    }
+
+    int fd = pm->fd;
+    off_t pos = lseek(fd, 0, SEEK_END);
+    uint8_t page_buf[PAGE_SIZE];
+    memset(page_buf, 0, PAGE_SIZE);
+    memcpy(page_buf, page->header, sizeof(PageHeader));
+    memcpy(page_buf + PAGE_HEADER_SIZE, page->keys, sizeof(page->keys));
+    memcpy(page_buf + PAGE_HEADER_SIZE + sizeof(page->keys), page->children, sizeof(page->children));
+
+    int written = write(fd, page_buf, PAGE_SIZE);
+    if(written == -1){
+        perror("write page failed");
+        return -1;
+    }
+
+    return pos;
+}
+
 void insert_key_in_internal_page(Page* page, int key, int value){
     int pos = page->header->num_of_keys;
 

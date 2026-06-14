@@ -30,7 +30,7 @@ typedef struct Page{
     int keys[MAX_KEYS_PER_PAGE + 1];
     union {
         int children[MAX_KEYS_PER_PAGE + 2];
-        int data[MAX_KEYS_PER_PAGE + 1];
+        int data[MAX_KEYS_PER_PAGE + 2];
     };
 } Page;
 
@@ -40,3 +40,4 @@ void print_page(Page* page);
 void insert_key_in_internal_page(Page* page, int key, int value);
 void insert_key_in_leaf_page(Page* page, int key, int value);
 void delete_key_from_page(Page* page, int key);
+off_t create_new_page(PageManager* pm, int* keys, int* values, unsigned int page_type);
