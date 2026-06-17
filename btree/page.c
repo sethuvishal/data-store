@@ -61,12 +61,10 @@ off_t create_new_page(PageManager* pm, int* keys, int* values, unsigned int page
         num_of_keys++;
     }
     page_header->page_type = page_type;
-    page->header->num_of_keys = num_of_keys;
-
+    page_header->num_of_keys = num_of_keys;
     page->header = page_header;
 
     memcpy(page->keys, keys, (MAX_KEYS_PER_PAGE + 1) * sizeof(int));
-    
     if(page_type & LEAF_PAGE){
         memcpy(page->data, values, (MAX_KEYS_PER_PAGE + 2) * sizeof(int));
     }else{
@@ -80,7 +78,6 @@ off_t create_new_page(PageManager* pm, int* keys, int* values, unsigned int page
     memcpy(page_buf, page->header, sizeof(PageHeader));
     memcpy(page_buf + PAGE_HEADER_SIZE, page->keys, sizeof(page->keys));
     memcpy(page_buf + PAGE_HEADER_SIZE + sizeof(page->keys), page->children, sizeof(page->children));
-
     int written = write(fd, page_buf, PAGE_SIZE);
     if(written == -1){
         perror("write page failed");
