@@ -73,6 +73,7 @@ off_t create_new_page(PageManager* pm, int* keys, int* values, unsigned int page
 
     int fd = pm->fd;
     off_t pos = lseek(fd, 0, SEEK_END);
+    page_header->pos = pos;
     uint8_t page_buf[PAGE_SIZE];
     memset(page_buf, 0, PAGE_SIZE);
     memcpy(page_buf, page->header, sizeof(PageHeader));
@@ -95,6 +96,7 @@ void insert_key_in_internal_page(Page* page, int key, int value){
         page->keys[pos] = key;
 
         page->children[pos + 2] = page->children[pos + 1];
+        page->children[pos + 1] = value;
 
         pos--;
     }

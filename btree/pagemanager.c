@@ -82,6 +82,7 @@ PageManager* create_pagemanager(const char* filename, bool trunc){
     memset(page_buf, 0, PAGE_SIZE);
 
     /* copy page header into beginning of page */
+    root_page_header->pos = lseek(fd, 0, SEEK_CUR);
     memcpy(page_buf, root_page_header, sizeof(PageHeader));
     written = write(fd, page_buf, PAGE_SIZE);
 

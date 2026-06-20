@@ -10,25 +10,36 @@ Btree* init_btree(PageManager* pm){
     return btree;
 }
 
-void insert(Btree* btree, int value, Page* page){
+void insert(Btree* btree, int value, Page* page, Page* parent_page){
     if(page == NULL){
         page = get_root_page(btree->pm);
     }
     int num_of_keys = page->header->num_of_keys;
-
+    print_page(page);
     if(page->header->page_type & LEAF_PAGE){
         page->keys[num_of_keys] = num_of_keys == 0 ? 1 : page->keys[num_of_keys - 1] + 1;
         page->data[num_of_keys] = value;
         page->header->num_of_keys++;
         if(page->header->num_of_keys == MAX_KEYS_PER_PAGE){
-            split_node(btree, page);
-        }else write_page(btree->pm, page, 100);
+            split_node(btree, page, parent_page);
+        }else{
+            write_page(btree->pm, page, page->header->pos);
+        } 
     }else{
-        // insert(btree, value, page->children[num_of_keys]);
+        int fd = btree->pm->fd;
+        lseek(fd, page->children[num_of_keys], SEEK_SET);
+        Page* next_page = get_page(btree->pm->fd);
+        insert(btree, value, next_page, page);
+        if(page->header->num_of_keys == MAX_KEYS_PER_PAGE){
+            split_node(btree, page, parent_page);
+        }
+    }
+    if(page->header->num_of_keys == MAX_KEYS_PER_PAGE){
+        split_node(btree, page, parent_page);
     }
 }
 
-void split_node(Btree* btree, Page* page){
+void split_node(Btree* btree, Page* page, Page* parent_page){
     int *values, *keys;
     if(page->header->page_type & LEAF_PAGE){
         values = page->data;
@@ -37,7 +48,7 @@ void split_node(Btree* btree, Page* page){
     }
     keys = page->keys;
 
-    int n = (int)ceil(MAX_KEYS_PER_PAGE / 2) - 1;
+    int n = (int)ceil(MAX_KEYS_PER_PAGE / 2);
     int new_left_node_values[MAX_KEYS_PER_PAGE + 2] = {0};
     memcpy(new_left_node_values, values, (n) * sizeof(int));
     int new_right_node_values[MAX_KEYS_PER_PAGE + 2] = {0};
@@ -47,16 +58,31 @@ void split_node(Btree* btree, Page* page){
     memcpy(new_left_node_keys, keys, (n) * sizeof(int));
     int new_right_node_keys[MAX_KEYS_PER_PAGE + 1] = {0};
     memcpy(new_right_node_keys, keys + n, (n + 1) * sizeof(int));
-
     unsigned int  page_type = page->header->page_type & LEAF_PAGE ? LEAF_PAGE : NON_LEAF_PAGE; 
-    off_t left_node_pointer = create_new_page(btree->pm, new_left_node_keys, new_left_node_values, page_type);
-    off_t right_node_pointer = create_new_page(btree->pm, new_right_node_keys, new_right_node_values, page_type);
-    
-    int new_keys[MAX_KEYS_PER_PAGE + 1]= {new_right_node_keys[0]};
-    int new_values[MAX_KEYS_PER_PAGE + 2] = {left_node_pointer, right_node_pointer};
-    page->header->num_of_keys = 1;
-    page->header->page_type &= ~LEAF_PAGE;
-    memcpy(page->keys, new_keys, (MAX_KEYS_PER_PAGE + 1) * sizeof(int));
-    memcpy(page->children, new_values, (MAX_KEYS_PER_PAGE + 2) * sizeof(int));
-    write_page(btree->pm, page, 100);
+    if(parent_page == NULL){
+        // if not parent page then the LEAF_PAGE and ROOT_PAGE is same
+        // in this case we are spliting the nodes by half and add the middle key in the root page 
+        // rest in the LEFT and RIGHT node of that key
+        off_t left_node_pointer = create_new_page(btree->pm, new_left_node_keys, new_left_node_values, page_type);
+        off_t right_node_pointer = create_new_page(btree->pm, new_right_node_keys, new_right_node_values, page_type);
+        
+        int new_keys[MAX_KEYS_PER_PAGE + 1]= {new_right_node_keys[0]};
+        int new_values[MAX_KEYS_PER_PAGE + 2] = {left_node_pointer, right_node_pointer};
+        page->header->num_of_keys = 1;
+        page->header->page_type &= ~LEAF_PAGE;
+        memcpy(page->keys, new_keys, (MAX_KEYS_PER_PAGE + 1) * sizeof(int));
+        memcpy(page->children, new_values, (MAX_KEYS_PER_PAGE + 2) * sizeof(int));
+        write_page(btree->pm, page, page->header->pos);
+    }else{
+        // if parent_page is not null then we have to add a new key to the parent page
+        off_t right_node_pointer = create_new_page(btree->pm, new_right_node_keys, new_right_node_values, page_type);
+        memcpy(page->keys, keys, (n) * sizeof(int));
+        if(page_type & LEAF_PAGE){
+            memcpy(page->data, values, (n) * sizeof(int));
+        }else memcpy(page->children, values, (n) * sizeof(int));
+        page->header->num_of_keys = n;
+        write_page(btree->pm, page, page->header->pos);
+        insert_key_in_internal_page(parent_page, new_right_node_keys[0], right_node_pointer);
+        write_page(btree->pm, parent_page, parent_page->header->pos);
+    }
 }

@@ -10,5 +10,5 @@ typedef struct Btree {
 } Btree;
 
 Btree* init_btree(PageManager* pm);
-void insert(Btree* btree, int value, Page* page);
-void split_node(Btree* btree, Page* page);
+void insert(Btree* btree, int value, Page* page, Page* parent_page);
+void split_node(Btree* btree, Page* page, Page* parent_page);

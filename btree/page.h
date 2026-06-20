@@ -23,6 +23,7 @@ typedef enum PAGE_TYPE {
 typedef struct PageHeader {
     unsigned int page_type;
     int num_of_keys;
+    off_t pos;
 } PageHeader;
 
 typedef struct Page{
