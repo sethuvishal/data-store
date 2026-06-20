@@ -82,6 +82,3 @@ How to experiment
 - Tweak MAX_KEYS_PER_PAGE and PAGE_SIZE in btree/page.h and observe split behavior
 - Change the insert loop in btree/main.c to insert different distributions and sizes
 - Inspect odb file with a hex viewer to see the page images
-
-License
-- Educational use only; no warranty. Improve it, break it, and learn from it!
