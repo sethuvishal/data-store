@@ -154,7 +154,8 @@ void delete_key_from_page(Page* page, int key){
 void print_page(Page* page){
     printf("Page Header: \n");
     printf("\tPage type: %d\n", page->header->page_type);
-    printf("\t Number of keys: %d\n", page->header->num_of_keys);
+    printf("\tNumber of keys: %d\n", page->header->num_of_keys);
+    printf("\tPage pos: %d\n", page->header->pos);
 
     printf("Page: \n");
     printf("\t Keys: \n");

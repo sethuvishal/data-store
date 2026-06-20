@@ -86,3 +86,27 @@ void split_node(Btree* btree, Page* page, Page* parent_page){
         write_page(btree->pm, parent_page, parent_page->header->pos);
     }
 }
+
+int find(Btree* btree, int search_key, Page* page){
+    if(page == NULL){
+        page = get_root_page(btree->pm);
+    }
+
+    unsigned int page_type = page->header->page_type;
+    if(page_type & LEAF_PAGE){
+        for(int i = 0; i < page->header->num_of_keys; i++){
+            if(page->keys[i] > search_key) break;
+            if(page->keys[i] == search_key) return page->data[i];
+        }
+    }else{
+        for(int i = 0 ; i < page->header->num_of_keys; i++){
+            if(page->keys[i] > search_key){
+                lseek(btree->pm->fd, page->children[i], SEEK_SET);
+                Page* next_page = get_page(btree->pm->fd);
+                return find(btree, search_key, next_page);
+                break;
+            }
+        }
+    }
+    return 0;
+}
