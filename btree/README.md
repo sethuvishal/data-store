@@ -1,4 +1,4 @@
-Btree — a disk-backed B-Tree experiment in C
+Btree - a disk-backed B-Tree experiment in C
 
 Minimal B-Tree–style storage engine that persists nodes (pages) to disk. It demonstrates fixed-size paging, a simple on-disk layout, and node splitting during inserts.
 
