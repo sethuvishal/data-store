@@ -1,12 +1,13 @@
 # data-store
 
-A learning and implementation project to build core data stores used in real‑world databases. The goal is to design, implement, benchmark, and document fundamental storage engines and file formats from scratch.
+A implementation project to build core data stores used in real‑world databases. The goal is to design, implement, benchmark, and document fundamental storage engines and file formats from scratch.
 
 What this project will cover:
 - B‑Tree / B+Tree
-  - Page layout, splits/merges, cursors/iterators
-  - Buffer manager and simple WAL/recovery
-  - On‑disk vs in‑memory variants
+  - [x] Fixed-size pages and on-disk page layout
+  - [x] B+ tree nodes (internal + leaf) using page IDs instead of pointers
+  - [x] Core operations: search, insert, split, and delete
+  - [x] Persistence: read/write pages and recover the tree after restart\
 - LSM‑Tree
   - Write path: WAL + memtable
   - Compaction strategies (tiered/leveled)
