@@ -9,13 +9,13 @@ What this project will cover:
   - [x] Core operations: search, insert, split, and delete
   - [x] Persistence: read/write pages and recover the tree after restart\
 - LSM‑Tree
-  - Write path: WAL + memtable
-  - Compaction strategies (tiered/leveled)
-  - Read path optimizations (Bloom filters, block cache)
+  - [] Write path: WAL + memtable
+  - [] Compaction strategies (tiered/leveled)
+  - [] Read path optimizations (Bloom filters, block cache)
 - SSTables (Sorted String Tables)
-  - Immutable, append‑only table format
-  - Data blocks, index blocks, filters, metadata
-  - Compression and checksums
+  - [] Immutable, append‑only table format
+  - [] Data blocks, index blocks, filters, metadata
+  - [] Compression and checksums
 
 Objectives:
 - Re‑implement these systems with clear, well‑documented abstractions
@@ -28,13 +28,5 @@ Planned structure:
 - lsm/: LSM‑Tree storage engine (memtable, WAL, compaction)
 - sst/: SSTable reader/writer library (blocks, index, filters)
 
-Roadmap (high level):
-- [ ] Define common KeyValueStore interfaces and on‑disk format conventions
-- [ ] Implement SSTable writer/reader and basic tooling
-- [ ] Add Bloom filter and block cache
-- [ ] Build LSM write path (WAL + memtable) and background compaction
-- [ ] Implement B+Tree with pager and buffer pool
-- [ ] Add benchmarks and trace‑based tests to compare engines
-- [ ] Document performance characteristics and tuning knobs
 
 Status: early work‑in‑progress. See subdirectories for current progress.
