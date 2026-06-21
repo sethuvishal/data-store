@@ -5,7 +5,7 @@ A implementation project to build core data stores used in real‑world database
 What this project will cover:
 - B‑Tree / B+Tree
   - [x] Fixed-size pages and on-disk page layout
-  - [x] B+ tree nodes (internal + leaf) using page IDs instead of pointers
+  - [] B+ tree nodes (internal + leaf) using page IDs instead of pointers
   - [x] Core operations: search, insert, split, and delete
   - [x] Persistence: read/write pages and recover the tree after restart\
 - LSM‑Tree
