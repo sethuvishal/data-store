@@ -5,17 +5,17 @@ A implementation project to build core data stores used in real‑world database
 What this project will cover:
 - B‑Tree / B+Tree
   - [x] Fixed-size pages and on-disk page layout
-  - [] B+ tree nodes (internal + leaf) using page IDs instead of pointers
+  - [ ] B+ tree nodes (internal + leaf) using page IDs instead of pointers
   - [x] Core operations: search, insert, split, and delete
   - [x] Persistence: read/write pages and recover the tree after restart\
 - LSM‑Tree
-  - [] Write path: WAL + memtable
-  - [] Compaction strategies (tiered/leveled)
-  - [] Read path optimizations (Bloom filters, block cache)
+  - [ ] Write path: WAL + memtable
+  - [ ] Compaction strategies (tiered/leveled)
+  - [ ] Read path optimizations (Bloom filters, block cache)
 - SSTables (Sorted String Tables)
-  - [] Immutable, append‑only table format
-  - [] Data blocks, index blocks, filters, metadata
-  - [] Compression and checksums
+  - [ ] Immutable, append‑only table format
+  - [ ] Data blocks, index blocks, filters, metadata
+  - [ ] Compression and checksums
 
 Objectives:
 - Re‑implement these systems with clear, well‑documented abstractions
@@ -27,6 +27,5 @@ Planned structure:
 - btree/: B‑Tree/B+Tree storage engine
 - lsm/: LSM‑Tree storage engine (memtable, WAL, compaction)
 - sst/: SSTable reader/writer library (blocks, index, filters)
-
 
 Status: early work‑in‑progress. See subdirectories for current progress.
