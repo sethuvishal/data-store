@@ -155,7 +155,7 @@ void print_page(Page* page){
     printf("Page Header: \n");
     printf("\tPage type: %d\n", page->header->page_type);
     printf("\tNumber of keys: %d\n", page->header->num_of_keys);
-    printf("\tPage pos: %d\n", page->header->pos);
+    printf("\tPage pos: %ld\n", page->header->pos);
 
     printf("Page: \n");
     printf("\t Keys: \n");

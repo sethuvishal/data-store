@@ -23,5 +23,9 @@ int main(){
         printf("Search Key %d valud is %d\n", i , value);
     }
 
+    update(btree, 34, 100, NULL);
+    int updated_value = find(btree, 34, NULL);
+    printf("Checking key(%d) after updating. value is %d\n", 34, updated_value);
+
     return 0;
 }

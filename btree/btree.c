@@ -110,3 +110,31 @@ int find(Btree* btree, int search_key, Page* page){
     }
     return 0;
 }
+
+bool update(Btree* btree, int update_key, int new_value, Page* page){
+    if(page == NULL){
+        page = get_root_page(btree->pm);
+    }
+
+    unsigned int page_type = page->header->page_type;
+    if(page_type & LEAF_PAGE){
+        for(int i = 0; i < page->header->num_of_keys; i++){
+            if(page->keys[i] > update_key) break;
+            if(page->keys[i] == update_key) {
+                page->data[i] = new_value;
+                write_page(btree->pm, page, page->header->pos);
+                return true;
+            }
+        }
+    }else{
+        for(int i = 0 ; i < page->header->num_of_keys; i++){
+            if(page->keys[i] > update_key){
+                lseek(btree->pm->fd, page->children[i], SEEK_SET);
+                Page* next_page = get_page(btree->pm->fd);
+                return update(btree, update_key, new_value, next_page);
+                break;
+            }
+        }
+    }
+    return false;
+}
