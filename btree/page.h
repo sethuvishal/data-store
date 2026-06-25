@@ -35,7 +35,7 @@ typedef struct Page{
     };
 } Page;
 
-Page* get_page(int fd);
+Page* get_page(int fd, ssize_t offset);
 Page* get_root_page(PageManager* pm);
 void print_page(Page* page);
 void insert_key_in_internal_page(Page* page, int key, int value);

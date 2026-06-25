@@ -9,7 +9,8 @@
 #include "page.h"
 #include "pagemanager.h"
 
-Page* get_page(int fd){
+Page* get_page(int fd, ssize_t offset){
+    lseek(fd, offset, SEEK_SET);
     uint8_t page_buf[PAGE_SIZE];
 
     ssize_t n = read(fd, page_buf, PAGE_SIZE);
@@ -45,12 +46,7 @@ Page* get_page(int fd){
 
 Page* get_root_page(PageManager* pm){
     // skip the page manager header and points to the root page's first byte.
-    if (lseek(pm->fd, DB_HEADER_SIZE, SEEK_SET) == -1) {
-        perror("lseek");
-        return NULL;
-    }
-
-    return get_page(pm->fd);
+    return get_page(pm->fd, DB_HEADER_SIZE);
 }
 
 off_t create_new_page(PageManager* pm, int* keys, int* values, unsigned int page_type){

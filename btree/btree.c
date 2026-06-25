@@ -27,8 +27,7 @@ void insert(Btree* btree, int value, Page* page, Page* parent_page){
         } 
     }else{
         int fd = btree->pm->fd;
-        lseek(fd, page->children[num_of_keys], SEEK_SET);
-        Page* next_page = get_page(btree->pm->fd);
+        Page* next_page = get_page(fd, page->children[num_of_keys]);
         insert(btree, value, next_page, page);
         if(page->header->num_of_keys == MAX_KEYS_PER_PAGE){
             split_node(btree, page, parent_page);
@@ -101,8 +100,7 @@ int find(Btree* btree, int search_key, Page* page){
     }else{
         for(int i = 0 ; i < page->header->num_of_keys; i++){
             if(page->keys[i] > search_key){
-                lseek(btree->pm->fd, page->children[i], SEEK_SET);
-                Page* next_page = get_page(btree->pm->fd);
+                Page* next_page = get_page(btree->pm->fd, page->children[i]);
                 return find(btree, search_key, next_page);
                 break;
             }
@@ -129,8 +127,7 @@ bool update(Btree* btree, int update_key, int new_value, Page* page){
     }else{
         for(int i = 0 ; i < page->header->num_of_keys; i++){
             if(page->keys[i] > update_key){
-                lseek(btree->pm->fd, page->children[i], SEEK_SET);
-                Page* next_page = get_page(btree->pm->fd);
+                Page* next_page = get_page(btree->pm->fd, page->children[i]);
                 return update(btree, update_key, new_value, next_page);
                 break;
             }
@@ -157,8 +154,7 @@ bool delete(Btree* btree, int delete_key, Page* page){
     }else{
         for(int i = 0 ; i < page->header->num_of_keys; i++){
             if(page->keys[i] > delete_key){
-                lseek(btree->pm->fd, page->children[i], SEEK_SET);
-                Page* next_page = get_page(btree->pm->fd);
+                Page* next_page = get_page(btree->pm->fd, page->children[i]);
                 return delete(btree, delete_key, next_page);
             }
         }
