@@ -15,3 +15,4 @@ void split_node(Btree* btree, Page* page, Page* parent_page);
 
 int find(Btree* btree, int search_key, Page* page);
 bool update(Btree* btree, int update_key, int new_value, Page* page);
+bool delete(Btree* btree, int delete_key, Page* page);

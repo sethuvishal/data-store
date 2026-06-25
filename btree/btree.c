@@ -138,3 +138,30 @@ bool update(Btree* btree, int update_key, int new_value, Page* page){
     }
     return false;
 }
+
+bool delete(Btree* btree, int delete_key, Page* page){
+    if(page == NULL){
+        page = get_root_page(btree->pm);
+    }
+
+    unsigned int page_type = page->header->page_type;
+    if(page_type & LEAF_PAGE){
+        for(int i = 0; i < page->header->num_of_keys; i++){
+            if(page->keys[i] > delete_key) break;
+            if(page->keys[i] == delete_key) {
+                delete_key_from_page(page, delete_key);
+                write_page(btree->pm, page, page->header->pos);
+                return true;
+            }
+        }
+    }else{
+        for(int i = 0 ; i < page->header->num_of_keys; i++){
+            if(page->keys[i] > delete_key){
+                lseek(btree->pm->fd, page->children[i], SEEK_SET);
+                Page* next_page = get_page(btree->pm->fd);
+                return delete(btree, delete_key, next_page);
+            }
+        }
+    }
+    return false;
+}

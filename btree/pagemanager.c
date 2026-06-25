@@ -137,7 +137,7 @@ PageManager* get_pagemanager(const char* filename){
         return NULL;
     }
 
-    if (bytes_read < sizeof(PageManager)) {
+    if (bytes_read < 0 || (size_t)bytes_read < sizeof(PageManager)) {
         fprintf(stderr, "Error: File does not contain enough data.\n");
         close(fd);
         return NULL;
