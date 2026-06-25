@@ -160,7 +160,7 @@ void merge_leaf_nodes(
         left->header->page_type |= parent_page->header->page_type;
         write_page(btree->pm, left, left->header->pos);
     }else{
-        parent_page->keys[separator_index] = parent_page->keys[separator_index + 1];
+        parent_page->keys[separator_index] = left->keys[left->header->num_of_keys - 1];
         delete_key_from_page(parent_page, parent_page->keys[separator_index + 1]);
     }
 
