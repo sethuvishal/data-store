@@ -93,19 +93,20 @@ int find(Btree* btree, int search_key, Page* page){
     unsigned int page_type = page->header->page_type;
     if(page_type & LEAF_PAGE){
         for(int i = 0; i < page->header->num_of_keys; i++){
-            if(page->keys[i] > search_key) break;
+            if(page->keys[i] > search_key) return 0;
             if(page->keys[i] == search_key) return page->data[i];
         }
+        return 0;
     }else{
         for(int i = 0 ; i < page->header->num_of_keys; i++){
             if(page->keys[i] > search_key){
                 Page* next_page = get_page(btree->pm->fd, page->children[i]);
                 return find(btree, search_key, next_page);
-                break;
             }
         }
     }
-    return 0;
+    Page* last_page = get_page(btree->pm->fd, page->children[page->header->num_of_keys]);
+    return find(btree, search_key, last_page);
 }
 
 bool update(Btree* btree, int update_key, int new_value, Page* page){
@@ -115,7 +116,7 @@ bool update(Btree* btree, int update_key, int new_value, Page* page){
 
     unsigned int page_type = page->header->page_type;
     if(page_type & LEAF_PAGE){
-        for(int i = 0; i < page->header->num_of_keys; i++){
+        for(int i = 0; i <= page->header->num_of_keys; i++){
             if(page->keys[i] > update_key) break;
             if(page->keys[i] == update_key) {
                 page->data[i] = new_value;
@@ -124,7 +125,7 @@ bool update(Btree* btree, int update_key, int new_value, Page* page){
             }
         }
     }else{
-        for(int i = 0 ; i < page->header->num_of_keys; i++){
+        for(int i = 0 ; i <= page->header->num_of_keys; i++){
             if(page->keys[i] > update_key){
                 Page* next_page = get_page(btree->pm->fd, page->children[i]);
                 return update(btree, update_key, new_value, next_page);
@@ -132,9 +133,39 @@ bool update(Btree* btree, int update_key, int new_value, Page* page){
             }
         }
     }
-    return false;
+    Page* last_page = get_page(btree->pm->fd, page->children[page->header->num_of_keys]);
+    return update(btree, update_key, new_value, last_page);
 }
 
+void merge_leaf_nodes(
+    Btree* btree,
+    Page *left,
+    Page *right,
+    Page* parent_page
+){
+    int left_page_last_key = left->keys[left->header->num_of_keys - 1];
+    int separator_index = 0;
+    while(separator_index < parent_page->header->num_of_keys){
+        if(parent_page->keys[separator_index] > left_page_last_key) break;
+        separator_index++;
+    }
+    // Move all keys from right into left.
+    for (int i = 0; i < right->header->num_of_keys; i++) {
+        insert_key_in_leaf_page(left, right->keys[i], right->data[i]);
+    }
+
+    // Remove separator from parent.
+    if(parent_page->header->page_type & ROOT_PAGE && parent_page->header->num_of_keys == 1){
+        left->header->pos = parent_page->header->pos;
+        left->header->page_type |= parent_page->header->page_type;
+        write_page(btree->pm, left, left->header->pos);
+    }else{
+        parent_page->keys[separator_index] = parent_page->keys[separator_index + 1];
+        delete_key_from_page(parent_page, parent_page->keys[separator_index + 1]);
+    }
+
+    free(right);
+}
 
 bool borrow_from_left_page(Btree* btree, Page* parent_page, Page* current_page){
     int current_page_idx = 0;
@@ -147,7 +178,10 @@ bool borrow_from_left_page(Btree* btree, Page* parent_page, Page* current_page){
 
     Page* left_page = get_page(btree->pm->fd, parent_page->children[current_page_idx - 1]);
     int left_page_num_of_keys = left_page->header->num_of_keys;
-    if(left_page_num_of_keys <= MAX_KEYS_PER_PAGE / 2) return false;
+    if(left_page_num_of_keys <= MAX_KEYS_PER_PAGE / 2){
+        merge_leaf_nodes(btree, left_page, current_page, parent_page);
+        return true;
+    }
 
     if(current_page->header->page_type & LEAF_PAGE){
         insert_key_in_leaf_page(current_page, left_page->keys[left_page_num_of_keys - 1], left_page->data[left_page_num_of_keys - 1]);
@@ -172,7 +206,10 @@ bool borrow_from_right_page(Btree* btree, Page* parent_page, Page* current_page)
 
     Page* right_page = get_page(btree->pm->fd, parent_page->children[current_page_idx + 1]);
     int right_page_num_of_keys = right_page->header->num_of_keys;
-    if(right_page_num_of_keys <= MAX_KEYS_PER_PAGE / 2) return false;
+    if(right_page_num_of_keys <= MAX_KEYS_PER_PAGE / 2){
+        merge_leaf_nodes(btree, current_page, right_page, parent_page);
+        return true;
+    }
 
     if(current_page->header->page_type & LEAF_PAGE){
         insert_key_in_leaf_page(current_page, right_page->keys[0], right_page->data[0]);
@@ -194,22 +231,13 @@ bool delete(Btree* btree, int delete_key, Page* page, Page* parent_page){
 
     unsigned int page_type = page->header->page_type;
     if(page_type & LEAF_PAGE){
-        for(int i = 0; i < page->header->num_of_keys; i++){
-            if(page->keys[i] > delete_key) break;
-            if(page->keys[i] == delete_key) {
-                delete_key_from_page(page, delete_key);
-                if(page->header->num_of_keys < MAX_KEYS_PER_PAGE / 2){ // underflow borrow a key from left or right page
-                    if(borrow_from_right_page(btree, parent_page, page)) return true;
-                    else if(borrow_from_left_page(btree, parent_page, page)) return true;
-
-                    // if cannot borrow a key from left and right page
-                    // let the page underflow for now
-                    // need to fix it later by merging the page with right page.
-                }
-                write_page(btree->pm, page, page->header->pos);
-                return true;
-            }
+        delete_key_from_page(page, delete_key);
+        if(page->header->num_of_keys < MAX_KEYS_PER_PAGE / 2){ // underflow borrow a key from left or right page
+            if(borrow_from_right_page(btree, parent_page, page)) return true;
+            else if(borrow_from_left_page(btree, parent_page, page)) return true;                  
         }
+        write_page(btree->pm, page, page->header->pos);
+        return true;
     }else{
         for(int i = 0 ; i < page->header->num_of_keys; i++){
             if(page->keys[i] > delete_key){
@@ -219,5 +247,7 @@ bool delete(Btree* btree, int delete_key, Page* page, Page* parent_page){
             }
         }
     }
-    return false;
+
+    Page* last_page = get_page(btree->pm->fd, page->children[page->header->num_of_keys]);
+    return delete(btree, delete_key, last_page, page);
 }
