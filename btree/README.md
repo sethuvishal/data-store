@@ -10,9 +10,10 @@ Status: early prototype
   - Insert that appends values into leaf pages and splits nodes when full
   - On-disk persistence and basic page I/O
   - Debug printing of pages
-- Planned (soon)
   - find(key): look up by key
   - update(key, value): update a stored value by key
+- Planned (soon)
+  - Delete(key): delete a key from the btree
 
 Repository layout
 - btree/
@@ -20,13 +21,12 @@ Repository layout
   - btree.h / btree.c: B-Tree façade and core insert/split logic
   - page.h / page.c: in-memory page representation and (de)serialization helpers
   - pagemanager.h / pagemanager.c: database file management and page read/write
-- README.md: this file
 
 Build and run
 From the repository root:
 
-  gcc -std=c11 -Wall -Wextra -O2 btree/*.c -o bree-demo
-  ./bree-demo
+  gcc -std=c11 -Wall -Wextra -O2 btree/*.c -o btree-demo
+  ./btree-demo
 
 The demo creates my.odb, inserts 150 integer values, and prints the resulting pages to stdout.
 
@@ -61,19 +61,13 @@ Core data structures (high level)
   - split_node(btree, page, parent_page)
 
 Current behavior and limitations
-- Keys in leaf pages are auto-incremented during insert and do not yet use the caller-provided key. The demo inserts integer values 1..150 as row data and assigns sequential integer keys within leaves.
+- Keys in leaf pages are auto-incremented during insert and do not yet use the caller-provided key.
 - Node splitting is implemented for both root and non-root pages. Internal nodes store child offsets (file positions) and separator keys.
-- There is no find(key) traversal yet; inserts route down via stored child offsets only during split handling.
-- There is no update(key, value) yet.
 - delete_key_from_page exists at the page level but there is no tree-level delete/rebalance logic.
 - Concurrency, crash safety (write-ahead logging), checksums, schema/catalog management, and free page reuse are out of scope for this prototype.
 - Portability notes: pages are written via raw memcpy of in-memory structs; there is no endianness handling or struct packing guarantees beyond this single build environment.
 
 Roadmap
-- Add find(key): tree traversal from root to leaf to return the value for a given key
-- Add update(key, value): locate a key and update its stored value in place
-- Use real key insertion into leaf pages (sorted by key) instead of auto-increment placeholders
-- Handle duplicate keys (policy TBD)
 - Tree-level delete with merge/redistribute and underflow handling
 - Free list and page reuse; page_count tracking and sanity checks
 - Unit and fuzz tests; property-based checks for split/merge invariants
