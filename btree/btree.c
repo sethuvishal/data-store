@@ -143,15 +143,23 @@ void merge_leaf_nodes(
     Page *right,
     Page* parent_page
 ){
-    int left_page_last_key = left->keys[left->header->num_of_keys - 1];
     int separator_index = 0;
-    while(separator_index <= parent_page->header->num_of_keys){
-        if(parent_page->keys[separator_index] > left_page_last_key) break;
+    while (separator_index <= parent_page->header->num_of_keys){
+        if (parent_page->children[separator_index] == left->header->pos)
+            break;
         separator_index++;
     }
-    // Move all keys from right into left.
-    for (int i = 0; i < right->header->num_of_keys; i++) {
-        insert_key_in_leaf_page(left, right->keys[i], right->data[i]);
+
+    // Copy all keys from right.
+    for (int i = 0; i < right->header->num_of_keys; i++){
+        left->keys[left->header->num_of_keys] = right->keys[i];
+        left->header->num_of_keys++;
+    }
+
+    // Copy all children.
+    int left_child_start = left->header->num_of_keys - right->header->num_of_keys;
+    for (int i = 0; i <= right->header->num_of_keys; i++){
+        left->data[left_child_start + i] = right->data[i];
     }
 
     // Remove separator from parent.
@@ -162,9 +170,9 @@ void merge_leaf_nodes(
     }else{
         if(separator_index == parent_page->header->num_of_keys){
             // just delete the last key
-            int separator_index_value = parent_page->children[separator_index];
+            unsigned int separator_index_value = parent_page->children[separator_index];
             delete_key_from_page(parent_page, parent_page->keys[separator_index]);
-            parent_page->children[separator_index] = separator_index;
+            parent_page->children[separator_index] = separator_index_value;
             write_page(btree->pm, parent_page, parent_page->header->pos);
         }else{
             delete_key_from_page(parent_page, parent_page->keys[separator_index]);
@@ -172,6 +180,54 @@ void merge_leaf_nodes(
         }
         write_page(btree->pm, left, left->header->pos);
     }
+
+    free(right);
+}
+
+void merge_internal_pages(Btree *btree, Page *left, Page *right, Page *parent_page){
+    int child_index = 0;
+
+    while (child_index <= parent_page->header->num_of_keys)
+    {
+        if (parent_page->children[child_index]
+            == left->header->pos)
+            break;
+
+        child_index++;
+    }
+
+    int separator =
+        parent_page->keys[child_index];
+
+    // Bring separator down.
+    left->keys[left->header->num_of_keys] = separator;
+    left->header->num_of_keys++;
+
+    // Copy all keys from right.
+    for (int i = 0; i < right->header->num_of_keys; i++){
+        left->keys[left->header->num_of_keys] = right->keys[i];
+        left->header->num_of_keys++;
+    }
+
+    // Copy all children.
+    int left_child_start =
+        left->header->num_of_keys -
+        right->header->num_of_keys;
+
+    for (int i = 0; i <= right->header->num_of_keys; i++){
+        left->children[left_child_start + i] = right->children[i];
+    }
+
+    // Remove separator from parent.
+    delete_key_from_page(parent_page, separator);
+
+    write_page(btree->pm,
+               left,
+               left->header->pos);
+
+    write_page(btree->pm,
+               parent_page,
+               parent_page->header->pos);
 
     free(right);
 }
@@ -188,7 +244,10 @@ bool borrow_from_left_page(Btree* btree, Page* parent_page, Page* current_page){
     Page* left_page = get_page(btree->pm->fd, parent_page->children[current_page_idx - 1]);
     int left_page_num_of_keys = left_page->header->num_of_keys;
     if(left_page_num_of_keys <= MAX_KEYS_PER_PAGE / 2){
-        merge_leaf_nodes(btree, left_page, current_page, parent_page);
+        if(left_page->header->page_type & LEAF_PAGE)
+            merge_leaf_nodes(btree, left_page, current_page, parent_page);
+        else
+            merge_internal_pages(btree, left_page, current_page, parent_page);
         return true;
     }
 
@@ -216,7 +275,10 @@ bool borrow_from_right_page(Btree* btree, Page* parent_page, Page* current_page)
     Page* right_page = get_page(btree->pm->fd, parent_page->children[current_page_idx + 1]);
     int right_page_num_of_keys = right_page->header->num_of_keys;
     if(right_page_num_of_keys <= MAX_KEYS_PER_PAGE / 2){
-        merge_leaf_nodes(btree, current_page, right_page, parent_page);
+        if(right_page->header->page_type & LEAF_PAGE)
+            merge_leaf_nodes(btree, current_page, right_page, parent_page);
+        else
+            merge_internal_pages(btree, current_page, right_page, parent_page);
         return true;
     }
 
