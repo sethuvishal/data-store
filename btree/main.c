@@ -6,7 +6,7 @@
 int main(){
     PageManager* pm = create_pagemanager("my.odb", true);
     Btree* btree = init_btree(pm);
-    for(int i = 1;i <= 200; i++){
+    for(int i = 1;i <= 5061; i++){
         insert(btree, i, NULL, NULL);
     }
 
@@ -42,6 +42,8 @@ int main(){
             print_page(page);
         }
     }
+    Page* last_page = get_page(pm->fd, 206948);
+    print_page(last_page);
 
     return 0;
 }
