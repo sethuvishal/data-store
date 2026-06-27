@@ -9,7 +9,9 @@
 #include "page.h"
 #include "pagemanager.h"
 
-Page* get_page(int fd, ssize_t offset){
+// Read a single fixed-size page image from disk at `offset` and return a
+// freshly allocated Page with header/keys/payload populated. Caller owns it.
+Page* page_read_at(int fd, ssize_t offset){
     lseek(fd, offset, SEEK_SET);
     uint8_t page_buf[PAGE_SIZE];
 
@@ -41,15 +43,15 @@ Page* get_page(int fd, ssize_t offset){
     page->header = page_header;
 
     return page;
-
 }
 
-Page* get_root_page(PageManager* pm){
-    // skip the page manager header and points to the root page's first byte.
-    return get_page(pm->fd, DB_HEADER_SIZE);
+// Root lives immediately after DB header
+Page* page_read_root(PageManager* pm){
+    return page_read_at(pm->fd, DB_HEADER_SIZE);
 }
 
-off_t create_new_page(PageManager* pm, int* keys, int* values, unsigned int page_type){
+// Append a new page at EOF and return its file offset.
+off_t page_create_and_append(PageManager* pm, int* keys, int* values, unsigned int page_type){
     Page* page = malloc(sizeof(Page));
     PageHeader* page_header = malloc(sizeof(PageHeader));
     int num_of_keys = 0;
@@ -84,7 +86,8 @@ off_t create_new_page(PageManager* pm, int* keys, int* values, unsigned int page
     return pos;
 }
 
-void insert_key_in_internal_page(Page* page, int key, int value){
+// Insert (key, childOffset) into an internal page in sorted order (stable to the right).
+void page_insert_internal(Page* page, int key, int value){
     int pos = page->header->num_of_keys;
 
     while(pos >= 0 && (!page->keys[pos] || page->keys[pos] > key)){
@@ -98,11 +101,10 @@ void insert_key_in_internal_page(Page* page, int key, int value){
     }
 
     page->header->num_of_keys++;
-
-    return;
 }
 
-void insert_key_in_leaf_page(Page* page, int key, int value){
+// Insert (key, value) into a leaf page in sorted order (stable to the right).
+void page_insert_leaf(Page* page, int key, int value){
     int pos = page->header->num_of_keys;
 
     while(pos >= 0 && (!page->keys[pos] || page->keys[pos] > key)){
@@ -116,11 +118,10 @@ void insert_key_in_leaf_page(Page* page, int key, int value){
     }
 
     page->header->num_of_keys++;
-
-    return;
 }
 
-void delete_key_from_page(Page* page, int key){
+// Delete a key from a page and shift remaining entries left.
+void page_delete_key(Page* page, int key){
     int i = 0;
     int num_of_Keys = page->header->num_of_keys;
     int pos = -1;
@@ -142,12 +143,10 @@ void delete_key_from_page(Page* page, int key){
         pos++;
     }
     page->header->num_of_keys--;
-    return;
 }
 
-
-
-void print_page(Page* page){
+// Human-readable dump of a page for debugging.
+void page_debug_print(Page* page){
     printf("Page Header: \n");
     printf("\tPage type: %d\n", page->header->page_type);
     printf("\tNumber of keys: %d\n", page->header->num_of_keys);

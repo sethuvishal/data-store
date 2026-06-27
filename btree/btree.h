@@ -1,21 +1,33 @@
+#pragma once
 #include <stdlib.h>
-#include <stdio.h>  
+#include <stdio.h>
 #include <stdint.h>
 #include "pagemanager.h"
 
-
 typedef struct Btree {
-    PageManager* pm;
-    long count;
+    PageManager* pm;   // backing page manager (owns fd and file header)
+    long count;        // optional future-use; not enforced in this prototype
 } Btree;
 
-Btree* init_btree(PageManager* pm);
-void insert(Btree* btree, int value, Page* page, Page* parent_page);
-void split_node(Btree* btree, Page* page, Page* parent_page);
+// Construct a B-Tree around an existing PageManager.
+Btree* btree_create(PageManager* pm);
 
-int find(Btree* btree, int search_key, Page* page);
-bool update(Btree* btree, int update_key, int new_value, Page* page);
-bool delete(Btree* btree, int delete_key, Page* page, Page* parent_page);
+// Insert a value. If page/parent are NULL, traversal starts at the root.
+void btree_insert(Btree* tree, int value, Page* page, Page* parent);
 
-bool borrow_from_left_page(Btree* btree, Page* parent_page, Page* current_page);
-bool borrow_from_right_page(Btree* btree, Page* parent_page, Page* current_page);
+// Split a full node and push separator up. Internal helper, but kept public
+// for now to ease experimentation.
+void btree_split_node(Btree* tree, Page* page, Page* parent);
+
+// Look up a key; returns 0 if not found (prototype behavior).
+int btree_find(Btree* tree, int key, Page* page);
+
+// Update an existing key with a new value; returns true if updated.
+bool btree_update(Btree* tree, int key, int new_value, Page* page);
+
+// Delete a key and rebalance (borrow/merge) if needed; returns true on success.
+bool btree_delete(Btree* tree, int key, Page* page, Page* parent);
+
+// Rebalance helpers used during delete.
+bool btree_borrow_from_left_sibling(Btree* tree, Page* parent, Page* current);
+bool btree_borrow_from_right_sibling(Btree* tree, Page* parent, Page* current);

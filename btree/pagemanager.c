@@ -9,8 +9,10 @@
 #include "page.h"
 #include "pagemanager.h"
 
-
-PageManager* create_pagemanager(const char* filename, bool trunc){
+// Create a new database file. If trunc==true, truncate/overwrite any existing
+// file otherwise, create with O_EXCL so open fails if the file exists.
+// Writes the DB header and an empty root page.
+PageManager* pagemanager_create(const char* filename, bool trunc){
     int flags = O_CREAT | O_RDWR;
 
     if (trunc) {
@@ -21,19 +23,18 @@ PageManager* create_pagemanager(const char* filename, bool trunc){
     int fd = open(filename, flags, 0644);
 
     if (fd == -1) {
-        perror("Error");
+        perror("open");
         return NULL;
     }
 
     PageManager* pm = (PageManager*) malloc(sizeof(PageManager));
-
     if (pm == NULL) {
         perror("malloc");
         close(fd);
         return NULL;
     }
-    PageManagerHeader* header = (PageManagerHeader*) malloc(sizeof(PageManagerHeader));
 
+    PageManagerHeader* header = (PageManagerHeader*) malloc(sizeof(PageManagerHeader));
     if (header == NULL) {
         perror("malloc");
         free(pm);
@@ -41,7 +42,7 @@ PageManager* create_pagemanager(const char* filename, bool trunc){
         return NULL;
     }
 
-    // setting default values to page manager header
+    // Initialize DB header
     header->empty = true;
     header->page_count = 0;
     header->page_size = PAGE_SIZE;
@@ -49,6 +50,7 @@ PageManager* create_pagemanager(const char* filename, bool trunc){
     pm->fd = fd;
     pm->header = header;
 
+    // Prepare a root page header (root starts as a leaf with 0 keys)
     PageHeader* root_page_header = malloc(sizeof(PageHeader));
     if(root_page_header == NULL){
         perror("malloc");
@@ -62,13 +64,10 @@ PageManager* create_pagemanager(const char* filename, bool trunc){
 
     ssize_t written;
 
-    /* write page manager header */
-    char buffer[100] = {0};
-
+    // Write DB header as a fixed-size 100-byte image
+    char buffer[DB_HEADER_SIZE] = {0};
     memcpy(buffer, header, sizeof(PageManagerHeader));
-
     written = write(fd, buffer, sizeof(buffer));
-
     if (written != sizeof(buffer)) {
         perror("write header");
         close(fd);
@@ -78,10 +77,10 @@ PageManager* create_pagemanager(const char* filename, bool trunc){
         return NULL;
     }
 
+    // Write an empty root page image
     uint8_t page_buf[PAGE_SIZE];
     memset(page_buf, 0, PAGE_SIZE);
 
-    /* copy page header into beginning of page */
     root_page_header->pos = lseek(fd, 0, SEEK_CUR);
     memcpy(page_buf, root_page_header, sizeof(PageHeader));
     written = write(fd, page_buf, PAGE_SIZE);
@@ -98,7 +97,7 @@ PageManager* create_pagemanager(const char* filename, bool trunc){
     return pm;
 }
 
-void write_page(PageManager* pm, Page* page, long offset){
+void pagemanager_write_page(PageManager* pm, Page* page, long offset){
     int fd = pm->fd;
 
     if(lseek(fd, offset, SEEK_SET) == -1){
@@ -117,10 +116,9 @@ void write_page(PageManager* pm, Page* page, long offset){
         perror("write page failed");
         return;
     }
-    return;
 }
 
-PageManager* get_pagemanager(const char* filename){
+PageManager* pagemanager_open(const char* filename){
     int fd = open(filename, O_RDWR);
 
     if(fd == -1){
@@ -137,7 +135,7 @@ PageManager* get_pagemanager(const char* filename){
         return NULL;
     }
 
-    if (bytes_read < 0 || (size_t)bytes_read < sizeof(PageManager)) {
+    if ((size_t)bytes_read < sizeof(PageManagerHeader)) {
         fprintf(stderr, "Error: File does not contain enough data.\n");
         close(fd);
         return NULL;
@@ -157,8 +155,8 @@ PageManager* get_pagemanager(const char* filename){
         close(fd);
         return NULL;
     }
-    // first 100 bytes of data is reserver for Header.
-    // Reading first 100 bytes of data and update header
+
+    // Deserialize DB header
     memcpy(header, buffer, sizeof(PageManagerHeader));
     pm->fd = fd;
     pm->header = header;

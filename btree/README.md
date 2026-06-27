@@ -12,8 +12,7 @@ Status: early prototype
   - Debug printing of pages
   - find(key): look up by key
   - update(key, value): update a stored value by key
-- Planned (soon)
-  - Delete(key): delete a key from the btree
+  - delete(key): delete a key from the btree
 
 Repository layout
 - btree/
@@ -45,25 +44,27 @@ On-disk layout (simplified)
 
 Core data structures (high level)
 - PageManager
-  - create_pagemanager(filename, trunc): create/open database and root page
-  - get_pagemanager(filename): open an existing database
-  - write_page(pm, page, offset): persist a page at a known offset
+  - pagemanager_create(filename, trunc): create/open database and root page
+  - pagemanager_open(filename): open an existing database
+  - pagemanager_write_page(pm, page, offset): persist a page at a known offset
 - Page
-  - get_root_page(pm): read root page
-  - get_page(fd): read a page at the current file offset
-  - create_new_page(pm, keys, values, page_type): append a new page and return its offset
-  - insert_key_in_internal_page, insert_key_in_leaf_page: helpers for in-page inserts
-  - delete_key_from_page: helper for in-page deletion
-  - print_page: debug dump
+  - page_read_root(pm): read root page
+  - page_read_at(fd): read a page at the given file offset
+  - page_create_and_append(pm, keys, values, page_type): append a new page and return its offset
+  - page_insert_internal, page_insert_leaf: helpers for in-page inserts
+  - page_delete_key: helper for in-page deletion
+  - page_debug_print: debug dump
 - Btree
-  - init_btree(pm)
-  - insert(btree, value, page, parent_page)
-  - split_node(btree, page, parent_page)
+  - btree_create(pm)
+  - btree_insert(tree, value, page, parent)
+  - btree_split_node(tree, page, parent)
+  - btree_find(tree, key, page)
+  - btree_update(tree, key, value, page)
+  - btree_delete(tree, key, page, parent)
 
 Current behavior and limitations
 - Keys in leaf pages are auto-incremented during insert and do not yet use the caller-provided key.
 - Node splitting is implemented for both root and non-root pages. Internal nodes store child offsets (file positions) and separator keys.
-- delete_key_from_page exists at the page level but there is no tree-level delete/rebalance logic.
 - Concurrency, crash safety (write-ahead logging), checksums, schema/catalog management, and free page reuse are out of scope for this prototype.
 - Portability notes: pages are written via raw memcpy of in-memory structs; there is no endianness handling or struct packing guarantees beyond this single build environment.
 
