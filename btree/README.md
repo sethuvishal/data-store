@@ -20,7 +20,7 @@ Repository layout
 - btree/pagemanager.h, btree/pagemanager.c: database file header + page I/O
 
 Build and run
-Requires a POSIX toolchain. Uses C11 and links libm (ceil). From repo root:
+From repo root:
 
   gcc -std=c11 -Wall -Wextra -O2 btree/*.c -o btree-demo -lm
   ./btree-demo
