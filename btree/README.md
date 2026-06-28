@@ -25,8 +25,6 @@ From repo root:
   gcc -std=c11 -Wall -Wextra -O2 btree/*.c -o btree-demo -lm
   ./btree-demo
 
-The demo creates my.odb, inserts 1..5061 into the tree, updates key 34 to 100, deletes key 137, then prints a debug dump of the root and some children.
-
 Quick usage (from C)
   #include "btree/btree.h"
   #include "btree/page.h"
