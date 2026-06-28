@@ -1,82 +1,105 @@
-# Btree: A Disk‑Backed B‑Tree Experiment in C
+Btree: a tiny disk‑backed B‑Tree in C
 
-A minimal B‑Tree–style storage engine that persists nodes (pages) to disk. It demonstrates **fixed‑size paging**, a **simple on‑disk layout**, and **node splitting** during inserts.
+A compact, educational B‑Tree storage engine that persists fixed‑size pages to a single file. It shows how to:
+- manage a paged on‑disk file
+- encode/decode page images
+- insert with node splits (root and non‑root)
+- look up, update, and delete keys with simple borrow/merge rebalancing
 
-- **Status:** Early prototype
+Status: prototype/learning project
 
-## Features (Implemented)
-- **Fixed‑size page manager** with a simple file header
-- **Page structure** with headers, keys, and either children pointers or row data
-- **Root page creation** on a fresh database file
-- **Insert** that appends values into leaf pages and **splits nodes when full**
-- **On‑disk persistence** and basic page I/O
-- **Debug printing** of pages
-- `find(key)`: **look up** by key
-- `update(key, value)`: **update** a stored value by key
-- `delete(key)`: **delete** a key from the B‑Tree
+Highlights
+- Fixed‑size paging with a small database header
+- Root page starts as a leaf and upgrades to an internal page on first split
+- Keys are kept sorted inside pages; internal pages store child page offsets
+- On‑disk format is intentionally simple and easy to inspect with a hex viewer
 
-## Repository Layout
-- `btree/`
-  - `main.c`: demo program that creates a database and inserts sample values
-  - `btree.h` / `btree.c`: B‑Tree façade and core insert/split logic
-  - `page.h` / `page.c`: in‑memory page representation and (de)serialization helpers
-  - `pagemanager.h` / `pagemanager.c`: database file management and page read/write
+Repository layout
+- btree/main.c: example program that builds and exercises a tree
+- btree/btree.h, btree/btree.c: tree façade, insert/split/find/update/delete
+- btree/page.h, btree/page.c: in‑memory page, (de)serialization, in‑page ops
+- btree/pagemanager.h, btree/pagemanager.c: database file header + page I/O
 
-## Build and Run
-From the repository root:
+Build and run
+Requires a POSIX toolchain. Uses C11 and links libm (ceil). From repo root:
 
-```bash
-gcc -std=c11 -Wall -Wextra -O2 btree/*.c -o btree-demo
-./btree-demo
-```
+  gcc -std=c11 -Wall -Wextra -O2 btree/*.c -o btree-demo -lm
+  ./btree-demo
 
-The demo creates `my.odb`, inserts 150 integer values, and prints the resulting pages to stdout.
+The demo creates my.odb, inserts 1..5061 into the tree, updates key 34 to 100, deletes key 137, then prints a debug dump of the root and some children.
 
-## On‑Disk Layout (Simplified)
-- **File header** (`DB_HEADER_SIZE = 100` bytes)
-  - `PageManagerHeader { page_count, empty, page_size }`
-- **Pages** (`PAGE_SIZE = 2048` bytes each)
-  - **PageHeader** (`PAGE_HEADER_SIZE = 50` bytes reserved in the page image)
-    - `page_type`: bit flags (`ROOT_PAGE`, `LEAF_PAGE`, `NON_LEAF_PAGE`)
-    - `num_of_keys`: number of populated keys
-    - `pos`: byte offset of this page in the file
-  - `keys`: `MAX_KEYS_PER_PAGE + 1` ints
-  - **payload**:
-    - if **LEAF_PAGE**: `data[MAX_KEYS_PER_PAGE + 2]` (row values)
-    - else: `children[MAX_KEYS_PER_PAGE + 2]` (file offsets to child pages)
+Quick usage (from C)
+  #include "btree/btree.h"
+  #include "btree/page.h"
 
-## Core APIs and Data Structures (High Level)
-- **PageManager**
-  - `pagemanager_create(filename, trunc)`: create/open database and root page
-  - `pagemanager_open(filename)`: open an existing database
-  - `pagemanager_write_page(pm, page, offset)`: persist a page at a known offset
-- **Page**
-  - `page_read_root(pm)`: read root page
-  - `page_read_at(fd)`: read a page at the given file offset
-  - `page_create_and_append(pm, keys, values, page_type)`: append a new page and return its offset
-  - `page_insert_internal`, `page_insert_leaf`: helpers for in‑page inserts
-  - `page_delete_key`: helper for in‑page deletion
-  - `page_debug_print`: debug dump
-- **Btree**
-  - `btree_create(pm)`
-  - `btree_insert(tree, value, page, parent)`
-  - `btree_split_node(tree, page, parent)`
-  - `btree_find(tree, key, page)`
-  - `btree_update(tree, key, value, page)`
-  - `btree_delete(tree, key, page, parent)`
+  PageManager* pm = pagemanager_create("my.odb", true); // truncates/creates
+  Btree* t = btree_create(pm);
 
-## Current Behavior and Limitations
-- **Leaf keys are auto‑incremented** during insert and do not yet use the caller‑provided key.
-- **Node splitting** is implemented for both root and non‑root pages. Internal nodes store child offsets (file positions) and separator keys.
-- **Out of scope:** concurrency, crash safety (write‑ahead logging), checksums, schema/catalog management, and free page reuse for this prototype.
-- **Portability notes:** pages are written via raw `memcpy` of in‑memory structs; there is no endianness handling or struct packing guarantees beyond this single build environment.
+  for (int i = 1; i <= 1000; i++) {
+      btree_insert(t, i, NULL, NULL); // keys auto‑assigned in leaves
+  }
 
-## Roadmap
-- **Tree‑level delete** with merge/redistribute and underflow handling
-- **Free list and page reuse**; `page_count` tracking and sanity checks
-- **Unit and fuzz tests**; property‑based checks for split/merge invariants
+  int v = btree_find(t, 42, NULL);           // returns stored value or 0
+  (void)v;
+  btree_update(t, 42, 999, NULL);            // updates value at key 42
+  btree_delete(t, 42, NULL, NULL);           // deletes key 42
 
-## How to Experiment
-- Tweak `MAX_KEYS_PER_PAGE` and `PAGE_SIZE` in `btree/page.h` and observe split behavior
-- Change the insert loop in `btree/main.c` to insert different distributions and sizes
-- Inspect the `my.odb` file with a hex viewer to see the page images
+  Page* root = page_read_root(pm);           // read root page for debugging
+  page_debug_print(root);
+
+On‑disk format (simplified)
+- Database header (DB_HEADER_SIZE = 100 bytes)
+  struct PageManagerHeader {
+    int page_count;  // not maintained yet
+    bool empty;      // true if only root exists
+    int page_size;   // must be 2048 in this build
+  };
+
+- Pages (PAGE_SIZE = 2048 bytes each)
+  Reserved at start: PAGE_HEADER_SIZE = 50 bytes
+  struct PageHeader {
+    unsigned int page_type;   // bit flags: ROOT_PAGE | LEAF_PAGE | NON_LEAF_PAGE
+    int          num_of_keys; // populated key count
+    off_t        pos;         // absolute file offset of this page
+  };
+
+  Page body layout (fixed arrays, zero‑filled when unused):
+  - keys[MAX_KEYS_PER_PAGE + 1]
+  - either
+    - data[MAX_KEYS_PER_PAGE + 2]      // for leaf pages (row values)
+    - children[MAX_KEYS_PER_PAGE + 2]  // for internal pages (child offsets)
+
+  Constants (page.h):
+  - PAGE_SIZE = 2048
+  - MAX_KEYS_PER_PAGE = 100            // so internal nodes can have up to 101 children
+  - PAGE_HEADER_SIZE = 50              // reserved space at start of each page image
+
+Programming model
+- PageManager handles file creation/open and serializes full page images.
+- Page encodes/decodes PageHeader + arrays to/from PAGE_SIZE buffers.
+- Btree traverses pages and performs:
+  - insert: append into leaf; split when full and push separator up
+  - find: walk down using separator keys
+  - update: find key in leaf and rewrite page
+  - delete: remove key; borrow from siblings or merge when underflowing
+
+Important behaviors and limitations
+- Leaf keys are auto‑incremented during insert; the API currently accepts only a value for insert. You operate on explicit keys when calling find/update/delete.
+- Crash‑safety: none (no WAL, no atomic page updates, no fsync protocol)
+- Concurrency: none (single‑writer, single‑process only)
+- Portability: no endianness conversion or packed struct guarantees beyond this build; page images are tied to the compiler/ABI used
+- Space management: no free‑list; pages are only appended, not reclaimed
+- Testing: no formal tests yet; main.c acts as a smoke test
+
+How to experiment
+- Change MAX_KEYS_PER_PAGE or PAGE_SIZE in btree/page.h to see different split/branching behavior
+- Edit the insert loop in btree/main.c to change data distributions
+- Inspect my.odb with hexdump or a hex editor to see page boundaries (2048‑byte steps)
+
+Example: peek at headers (Linux/macOS)
+  hexdump -C -n 100 my.odb            # DB header
+  hexdump -C -s 100 -n 2048 my.odb    # root page image
+
+Roadmap ideas
+- Free‑list and page reuse; maintain page_count accurately
+- Optional checksums; basic endianness handling; minimal crash‑recovery
