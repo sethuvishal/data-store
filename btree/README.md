@@ -2,7 +2,6 @@ Btree: a tiny disk‑backed B‑Tree in C
 
 A compact, educational B‑Tree storage engine that persists fixed‑size pages to a single file. It shows how to:
 - manage a paged on‑disk file
-- encode/decode page images
 - insert with node splits (root and non‑root)
 - look up, update, and delete keys with simple borrow/merge rebalancing
 
