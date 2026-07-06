@@ -3,6 +3,12 @@
 
 #include "btree.h"
 
+static inline void free_page(Page* p){
+    if(!p) return;
+    if(p->header) free(p->header);
+    free(p);
+}
+
 // Create a B-Tree backed by the provided PageManager.
 Btree* btree_create(PageManager* pm){
     Btree* tree = malloc(sizeof(Btree));
@@ -36,6 +42,7 @@ void btree_insert(Btree* tree, int value, Page* page, Page* parent){
     if(page->header->num_of_keys == MAX_KEYS_PER_PAGE){
         btree_split_node(tree, page, parent);
     }
+    free_page(page);
 }
 
 // Split a full node into two siblings and push the lowest key of the right
@@ -94,23 +101,36 @@ int btree_find(Btree* tree, int search_key, Page* page){
         page = page_read_root(tree->pm);
     }
 
+    int result = 0;
     unsigned int page_type = page->header->page_type;
     if(page_type & LEAF_PAGE){
         for(int i = 0; i < page->header->num_of_keys; i++){
-            if(page->keys[i] > search_key) return 0;
-            if(page->keys[i] == search_key) return page->data[i];
+            if(page->keys[i] > search_key){
+                free_page(page);
+                return 0;
+            }
+            if(page->keys[i] == search_key){
+                int result = page->data[i];
+                free_page(page);
+                return result;
+            }
         }
-        return 0;
+        result = 0;
     }else{
         for(int i = 0 ; i < page->header->num_of_keys; i++){
             if(page->keys[i] > search_key){
                 Page* next_page = page_read_at(tree->pm->fd, page->children[i]);
-                return btree_find(tree, search_key, next_page);
+                result = btree_find(tree, search_key, next_page);
+                free_page(page);
+                return result;
             }
         }
+        Page* last_page = page_read_at(tree->pm->fd, page->children[page->header->num_of_keys]);
+        result = btree_find(tree, search_key, last_page);
     }
-    Page* last_page = page_read_at(tree->pm->fd, page->children[page->header->num_of_keys]);
-    return btree_find(tree, search_key, last_page);
+
+    free_page(page);
+    return result;
 }
 
 bool btree_update(Btree* tree, int update_key, int new_value, Page* page){
@@ -118,6 +138,7 @@ bool btree_update(Btree* tree, int update_key, int new_value, Page* page){
         page = page_read_root(tree->pm);
     }
 
+    bool updated = false;
     unsigned int page_type = page->header->page_type;
     if(page_type & LEAF_PAGE){
         for(int i = 0; i <= page->header->num_of_keys; i++){
@@ -125,19 +146,27 @@ bool btree_update(Btree* tree, int update_key, int new_value, Page* page){
             if(page->keys[i] == update_key) {
                 page->data[i] = new_value;
                 pagemanager_write_page(tree->pm, page, page->header->pos);
-                return true;
+                updated = true;
+                break;
             }
         }
     }else{
         for(int i = 0 ; i <= page->header->num_of_keys; i++){
             if(page->keys[i] > update_key){
                 Page* next_page = page_read_at(tree->pm->fd, page->children[i]);
-                return btree_update(tree, update_key, new_value, next_page);
+                bool res = btree_update(tree, update_key, new_value, next_page);
+                free_page(page);
+                return res;
             }
         }
+        Page* last_page = page_read_at(tree->pm->fd, page->children[page->header->num_of_keys]);
+        bool res = btree_update(tree, update_key, new_value, last_page);
+        free_page(page);
+        return res;
     }
-    Page* last_page = page_read_at(tree->pm->fd, page->children[page->header->num_of_keys]);
-    return btree_update(tree, update_key, new_value, last_page);
+
+    free_page(page);
+    return updated;
 }
 
 static void merge_leaf_nodes(
@@ -183,8 +212,6 @@ static void merge_leaf_nodes(
         }
         pagemanager_write_page(tree->pm, left, left->header->pos);
     }
-
-    free(right);
 }
 
 static void merge_internal_pages(Btree *tree, Page *left, Page *right, Page *parent_page){
@@ -231,8 +258,6 @@ static void merge_internal_pages(Btree *tree, Page *left, Page *right, Page *par
     pagemanager_write_page(tree->pm,
                parent_page,
                parent_page->header->pos);
-
-    free(right);
 }
 
 bool btree_borrow_from_left_sibling(Btree* tree, Page* parent_page, Page* current_page){
@@ -251,6 +276,7 @@ bool btree_borrow_from_left_sibling(Btree* tree, Page* parent_page, Page* curren
             merge_leaf_nodes(tree, left_page, current_page, parent_page);
         else
             merge_internal_pages(tree, left_page, current_page, parent_page);
+        free_page(left_page);
         return true;
     }
 
@@ -264,6 +290,7 @@ bool btree_borrow_from_left_sibling(Btree* tree, Page* parent_page, Page* curren
     pagemanager_write_page(tree->pm, current_page, current_page->header->pos);
     pagemanager_write_page(tree->pm, left_page, left_page->header->pos);
     pagemanager_write_page(tree->pm, parent_page, parent_page->header->pos);
+    free_page(left_page);
     return true;
 }
 
@@ -282,6 +309,7 @@ bool btree_borrow_from_right_sibling(Btree* tree, Page* parent_page, Page* curre
             merge_leaf_nodes(tree, current_page, right_page, parent_page);
         else
             merge_internal_pages(tree, current_page, right_page, parent_page);
+        free_page(right_page);
         return true;
     }
 
@@ -295,6 +323,8 @@ bool btree_borrow_from_right_sibling(Btree* tree, Page* parent_page, Page* curre
     pagemanager_write_page(tree->pm, current_page, current_page->header->pos);
     pagemanager_write_page(tree->pm, right_page, right_page->header->pos);
     pagemanager_write_page(tree->pm, parent_page, parent_page->header->pos);
+
+    free_page(right_page);
     return true;
 }
 
@@ -328,25 +358,35 @@ bool btree_delete(Btree* tree, int delete_key, Page* page, Page* parent_page){
         page_delete_key(page, delete_key);
         if(parent_page != NULL && page->header->num_of_keys < MAX_KEYS_PER_PAGE / 2){
             // underflow: try to borrow a key from right or left sibling
-            if(btree_borrow_from_right_sibling(tree, parent_page, page)) return true;
-            else if(btree_borrow_from_left_sibling(tree, parent_page, page)) return true;
+            if(btree_borrow_from_right_sibling(tree, parent_page, page)){ 
+                free_page(page); 
+                return true; 
+            }
+            else if(btree_borrow_from_left_sibling(tree, parent_page, page)){ 
+                free_page(page); 
+                return true; 
+            }
         }
         if (delete_key == old_first && page->header->num_of_keys > 0 &&  parent_page != NULL) {
             update_parent_separator(parent_page, page->header->pos, page->keys[0]);
             pagemanager_write_page(tree->pm, parent_page, parent_page->header->pos);
         }
         pagemanager_write_page(tree->pm, page, page->header->pos);
+        free_page(page);
         return true;
     }else{
         for(int i = 0 ; i < page->header->num_of_keys; i++){
             if(page->keys[i] > delete_key){
                 Page* next_page = page_read_at(tree->pm->fd, page->children[i]);
                 bool deleted = btree_delete(tree, delete_key, next_page, page);
+                free_page(page);
                 return deleted;
             }
         }
     }
 
     Page* last_page = page_read_at(tree->pm->fd, page->children[page->header->num_of_keys]);
-    return btree_delete(tree, delete_key, last_page, page);
+    bool deleted = btree_delete(tree, delete_key, last_page, page);
+    free_page(page);
+    return deleted;
 }
