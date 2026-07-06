@@ -326,9 +326,10 @@ bool btree_delete(Btree* tree, int delete_key, Page* page, Page* parent_page){
     if(page_type & LEAF_PAGE){
         int old_first = page->keys[0];
         page_delete_key(page, delete_key);
-        if(page->header->num_of_keys < MAX_KEYS_PER_PAGE / 2){ // underflow borrow a key from left or right page
+        if(parent_page != NULL && page->header->num_of_keys < MAX_KEYS_PER_PAGE / 2){
+            // underflow: try to borrow a key from right or left sibling
             if(btree_borrow_from_right_sibling(tree, parent_page, page)) return true;
-            else if(btree_borrow_from_left_sibling(tree, parent_page, page)) return true;                  
+            else if(btree_borrow_from_left_sibling(tree, parent_page, page)) return true;
         }
         if (delete_key == old_first && page->header->num_of_keys > 0 &&  parent_page != NULL) {
             update_parent_separator(parent_page, page->header->pos, page->keys[0]);
